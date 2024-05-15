@@ -28,9 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
             button1 = new Button();
-            timer1 = new System.Windows.Forms.Timer(components);
             button2 = new Button();
             pictureBox1 = new PictureBox();
             pictureBox2 = new PictureBox();
@@ -64,11 +62,6 @@
             button1.Text = "Перегенерировать доску";
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
-            // 
-            // timer1
-            // 
-            timer1.Interval = 1000;
-            timer1.Tick += timer1_Tick;
             // 
             // button2
             // 
@@ -287,7 +280,7 @@
             Controls.Add(button2);
             Controls.Add(button1);
             Controls.Add(pictureBox1);
-            FormBorderStyle = FormBorderStyle.None;
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             Name = "Form2";
             Text = "Form2";
             TopMost = true;
@@ -303,7 +296,6 @@
         #endregion
 
         private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.Button button2;
         private PictureBox pictureBox1;
         private PictureBox pictureBox2;

@@ -18,6 +18,7 @@ namespace Core_Mk3
         #region _____Переменные_____
         private Arena _arena;
         private TableLayoutPanel _stoneGrid;
+        /*
         private TableLayoutPanelCellPosition _previousStonePosition = new TableLayoutPanelCellPosition(-1, -1);
         private const int _gridSize = 8;
         private EStoneType[,] _stoneGridArray = new EStoneType[_gridSize, _gridSize];
@@ -29,13 +30,15 @@ namespace Core_Mk3
         private List<(int, int)>? _timerListOfRemovedStones;
         private EStoneType _timerInitStoneType;
         private int _timerCombinationSize;
+        */
         #endregion 
 
         #region ______Функции первоначальной инициализации поля______
         public Form2(Arena arena)
         {
             InitializeComponent();
-            InitializeGridArray();
+            _arena = arena;
+            _arena.InitializeGridArray();
             InitializeGrid();
             InitializeButtons();
             _arena = arena;
@@ -50,19 +53,19 @@ namespace Core_Mk3
         {
             _stoneGrid = new TableLayoutPanel();
             _stoneGrid.AutoSize = true;
-            _stoneGrid.ColumnCount = _gridSize;
-            _stoneGrid.RowCount = _gridSize;
+            _stoneGrid.ColumnCount = _arena.GetGridSize();
+            _stoneGrid.RowCount = _arena.GetGridSize();
             _stoneGrid.CellBorderStyle = TableLayoutPanelCellBorderStyle.Single;
             _stoneGrid.Location = new Point(1920 / 2 - 256, 1080 / 2 - 256);
             //При изменении цвета таблицы камни в таблице начинают грузиться с видимой задержкой
             //_stoneGrid.BackColor = Color.Transparent;
             _stoneGrid.Show();
             Controls.Add(_stoneGrid);
-            for (int i = 0; i < _gridSize; i++)
+            for (int i = 0; i < _stoneGrid.ColumnCount; i++)
             {
                 _stoneGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
                 _stoneGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
-                for (int j = 0; j < _gridSize; j++)
+                for (int j = 0; j < _stoneGrid.ColumnCount; j++)
                 {
                     _stoneGrid.Controls.Add(CreateStone(), i, j);
                 }
@@ -100,38 +103,6 @@ namespace Core_Mk3
             }
         }
         
-        public EStoneType RandomStone()
-        {
-            return (EStoneType)_random.Next(1, 8);
-        }
-        public void InitializeGridArray()
-        {
-            for (int i = 0; i < _gridSize; i++)
-            {
-                for (int j = 0; j < _gridSize; j++)
-                {
-                    _stoneGridArray[i, j] = RandomStone();
-                }
-            }
-            // Проверка и корректировка значений
-            for (int i = 0; i < _gridSize; i++)
-            {
-                for (int j = 0; j < _gridSize; j++)
-                {
-                    // Проверка по горизонтали
-                    while (j > 1 && _stoneGridArray[i, j] == _stoneGridArray[i, j - 1] && _stoneGridArray[i, j] == _stoneGridArray[i, j - 2])
-                    {
-                        _stoneGridArray[i, j] = RandomStone();
-                    }
-
-                    // Проверка по вертикали
-                    while (i > 1 && _stoneGridArray[i, j] == _stoneGridArray[i - 1, j] && _stoneGridArray[i, j] == _stoneGridArray[i - 2, j])
-                    {
-                        _stoneGridArray[i, j] = RandomStone();
-                    }
-                }
-            }
-        }
         private PictureBox CreateStone()
         {
             PictureBox Stone = new PictureBox();
@@ -159,13 +130,13 @@ namespace Core_Mk3
         private void DrawStone(int x, int y)
         {
             PictureBox l = _stoneGrid.GetControlFromPosition(x, y) as PictureBox;
-            l.Image = GetPicture(_stoneGridArray[x, y]);
+            l.Image = GetPicture(_arena.GetGridArray()[x, y]);
         }
         private void UpdateGrid()
         {
-            for (int i = 0; i < _gridSize; i++)
+            for (int i = 0; i < _arena.GetGridSize(); i++)
             {
-                for (int j = 0; j < _gridSize; j++)
+                for (int j = 0; j < _arena.GetGridSize(); j++)
                 {
                     DrawStone(i, j);
                 }
@@ -220,217 +191,8 @@ namespace Core_Mk3
         {
             PictureBox Stone = sender as PictureBox;
             TableLayoutPanelCellPosition CurrentStonePosition = _stoneGrid.GetCellPosition(Stone);
-            bool previousStoneIsNearby = false;
-            if (_previousStonePosition.Row == -1)
-            {
-                _previousStonePosition = CurrentStonePosition;
-                Stone.BackColor = Color.Blue;
-            }
-            else
-            {
-                for (int i = 0; i < 4; i++)
-                    if ((CurrentStonePosition.Column + _offsetX[i] == _previousStonePosition.Column) && (CurrentStonePosition.Row + _offsetY[i] == _previousStonePosition.Row))
-                    {
-                        previousStoneIsNearby = true;
-                    }
-                _stoneGrid.GetControlFromPosition(_previousStonePosition.Column, _previousStonePosition.Row).BackColor = Color.Transparent;
-                if (previousStoneIsNearby)
-                {
-                    SwapStones(CurrentStonePosition.Column, CurrentStonePosition.Row, _previousStonePosition.Column, _previousStonePosition.Row);
-                    _previousStonePosition.Column = -1; _previousStonePosition.Row = -1;
-                    _arena.GetTurnSwitch().Switcher = true;
-                    if (ScanFieldForPossibleCombinations())
-                    {
-                        ScanFieldAndCombine();
-                    }
-                }
-                else
-                {
-                    _previousStonePosition = CurrentStonePosition;
-                    Stone.BackColor = Color.Blue;
-                }
-            }
+            _arena.StoneClick(CurrentStonePosition.Column, CurrentStonePosition.Row);
             UpdateGrid();
-        }
-        public void SwapStones(int x1, int y1, int x2, int y2)
-        {
-            var temp = _stoneGridArray[x1, y1];
-            _stoneGridArray[x1, y1] = _stoneGridArray[x2, y2];
-            _stoneGridArray[x2, y2] = temp;
-        }
-        public void RemoveStones(List<(int, int)> RemovedStones)
-        {
-            if (RemovedStones[0].Item2 != RemovedStones[1].Item2) //вертикальная комбинация
-            {
-                for (int i = 0; i < RemovedStones.Count(); i++)
-                {
-                    StoneFall(RemovedStones[0].Item1, RemovedStones[0].Item2);
-                }
-            }
-            else //горизонтальная комбинация
-            {
-                for (int i = 0; i < RemovedStones.Count(); i++)
-                {
-                    StoneFall(RemovedStones[i].Item1, RemovedStones[i].Item2);
-                }
-            }
-        }
-        public void StoneFall(int x, int y)
-        {
-            for (int i = y; i > 0; i--)
-            {
-                _stoneGridArray[x, i] = _stoneGridArray[x, i - 1];
-            }
-            _stoneGridArray[x, 0] = RandomStone();
-        }
-
-        public void ScanFieldAndCombine()
-        {
-            for (int i = 0; i < _gridSize; i++)
-            {
-                for (int j = 0; j < _gridSize; j++)
-                {
-                    CheckForCombination(i, j);
-                }
-            }
-            UpdateGrid();
-        }
-        public void CheckForCombination(int x, int y)
-        {
-            EStoneType InitStoneType = _stoneGridArray[x, y];
-            int CombinationSizeX = 0;
-            int CombinationSizeY = 0;
-            var CSX = new List<(int, int)>();
-            var CSY = new List<(int, int)>();
-            for (int i = Math.Max(x - 1, 0); i > 0; i--)
-            {
-                if (_stoneGridArray[i, y] == InitStoneType)
-                {
-                    CombinationSizeX++;
-                    CSX.Add((i, y));
-                }
-                else
-                {
-                    break;
-                }
-            }
-            for (int i = x; i < _gridSize; i++)
-            {
-                if (_stoneGridArray[i, y] == InitStoneType)
-                {
-                    CombinationSizeX++;
-                    CSX.Add((i, y));
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            for (int i = y; i < _gridSize; i++)
-            {
-                if (_stoneGridArray[x, i] == InitStoneType)
-                {
-                    CombinationSizeY++;
-                    CSY.Add((x, i));
-                }
-                else
-                {
-                    break;
-                }
-            }
-            for (int i = Math.Max(y - 1, 0); i > 0; i--)
-            {
-                if (_stoneGridArray[x, i] == InitStoneType)
-                {
-                    CombinationSizeY++;
-                    CSY.Add((x, i));
-                }
-                else
-                {
-                    break;
-                }
-            }
-            if (CombinationSizeX >= 3)
-            {
-                _timerListOfRemovedStones = CSX;
-                _timerInitStoneType = InitStoneType;
-                _timerCombinationSize = CombinationSizeX;
-                timer1.Start();
-            }
-            else if (CombinationSizeY >= 3)
-            {
-                _timerListOfRemovedStones = CSY;
-                _timerInitStoneType = InitStoneType;
-                _timerCombinationSize = CombinationSizeY;
-                timer1.Start();
-            }
-        }
-        public bool ScanFieldForPossibleCombinations()
-        {
-            for (int i = 0; i < _gridSize; i++)
-            {
-                for (int j = 0; j < _gridSize; j++)
-                {
-                    if (IsEligibleForCombination(i, j) == true)
-                        return true;
-                }
-            }
-            return false;
-        }
-        public bool IsEligibleForCombination(int x, int y)
-        {
-            EStoneType InitStoneType = _stoneGridArray[x, y];
-            int CombinationSizeX = 0;
-            int CombinationSizeY = 0;
-            for (int i = Math.Max(x - 1, 0); i > 0; i--)
-            {
-                if (_stoneGridArray[i, y] == InitStoneType)
-                {
-                    CombinationSizeX++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            for (int i = x; i < _gridSize; i++)
-            {
-                if (_stoneGridArray[i, y] == InitStoneType)
-                {
-                    CombinationSizeX++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            for (int i = y; i < _gridSize; i++)
-            {
-                if (_stoneGridArray[x, i] == InitStoneType)
-                {
-                    CombinationSizeY++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            for (int i = Math.Max(y - 1, 0); i > 0; i--)
-            {
-                if (_stoneGridArray[x, i] == InitStoneType)
-                {
-                    CombinationSizeY++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            if ((CombinationSizeX > 2) || (CombinationSizeY > 2))
-                return true;
-            return false;
         }
         #endregion
 
@@ -625,45 +387,8 @@ namespace Core_Mk3
         }
         private void button1_Click(object sender, EventArgs e)
         {
-            InitializeGridArray();
+            _arena.InitializeGridArray();
             UpdateGrid();
-        }
-
-        private void timer1_Tick(object sender, EventArgs e)
-        {
-            switch (_timerSwitch)
-            {
-                case 0: PaintRemovedStones(_timerListOfRemovedStones);
-                    _timerSwitch++;
-                    break;
-                case 1: PaintFallingStones(_timerListOfRemovedStones);
-                    _timerSwitch++;
-                    break;
-                case 2: RemoveStones(_timerListOfRemovedStones);
-                    _timerSwitch++;
-                    break;
-                case 3: PaintFallingStones(_timerListOfRemovedStones);
-                    PaintRemovedStones(_timerListOfRemovedStones);
-                    _arena.StoneCombination(_timerInitStoneType, _timerCombinationSize);
-                    UpdateGrid();
-                    _timerSwitch = 0;
-                    timer1.Stop();
-                    if (ScanFieldForPossibleCombinations())
-                    {
-                        MessageBox.Show("Ход продолжается");
-                        UpdatePlayerCard(_arena._player);
-                        UpdateEnemyCard(_arena._enemy);
-                        ScanFieldAndCombine();
-                    }
-                    else
-                    {
-                        MessageBox.Show("Ход закончен");
-                        UpdatePlayerCard(_arena._player);
-                        UpdateEnemyCard(_arena._enemy);
-                        _arena.CompleteStep();
-                    }
-                    break;
-            }
         }
     }
 }
